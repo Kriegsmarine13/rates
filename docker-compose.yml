@@ -1,0 +1,91 @@
+services:
+  php:
+    container_name: rates-php
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    volumes:
+      - ./rates-app/:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  nginx:
+    container_name: rates-nginx
+    image: nginx:1.27-alpine
+    ports:
+      - 8079:80
+      - 8443:443
+    volumes:
+      - ./rates-app/:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+
+  worker:
+    profiles: ["worker"]
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    volumes:
+      - ./rates-app/:/var/www/html
+    env_file:
+      - .env
+    command: php artisan queue:work rabbitmq --sleep=1 --tries=3 --timeout=60
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  postgres:
+    container_name: rates-postgres
+    image: postgres:18-alpine
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rates -d rates"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    container_name: rates-redis
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    container_name: rates-rabbitmq
+    image: rabbitmq:4-management
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  rabbitmqdata:
