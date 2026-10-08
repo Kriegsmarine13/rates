@@ -38,7 +38,7 @@ GET /rate?date=2026-03-06&target=USD&base=EUR
 - дата в формате YYYY-MM-DD, не позднее сегодня (даты в будущем отсекает валидация)
 - валюта - любые три латинские буквы (приводятся к верхнему регистру, пробелы отсекаются)
 
-### Загрузка истории
+### Загрузка истории 
 #### Запуск воркера
 ```bash
 docker compose --profile worker up -d worker
@@ -48,11 +48,13 @@ docker compose --profile worker up -d worker
 docker compose exec php php artisan rates:fetch
 ```
 Команда загружает данные за сегодня + 180 дней
-
+ю
 #### Логи воркера (live)
 ```bash
 docker compose --profile worker logs -f worker
 ```
+Загрузка занимает порядка ~4мин
+(Не нашел рейт лимита на сайте ЦБ, поэтому на всякий случай скромно отправляю по запросу в секунду)
 
 ## Тесты
 
